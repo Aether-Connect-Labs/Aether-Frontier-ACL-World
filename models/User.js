@@ -14,6 +14,7 @@ const UserSchema = new mongoose.Schema({
         targetsShot: { type: Number, default: 0 },
         aetherCount: { type: Number, default: 0 }
     },
+    walletAddress: { type: String, default: null },
     lastUpdated: { type: Date, default: Date.now }
 });
 

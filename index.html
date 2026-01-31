@@ -679,7 +679,7 @@
         <div id="level-badge">NIVEL 1: GRANJA DIGITAL</div>
         
         <div id="wallet-container" style="pointer-events: auto; position: absolute; top: 10px; right: 10px; z-index: 201;">
-             <button id="connect-wallet" class="cyber-button">CONNECT WALLET</button>
+             <button id="connect-wallet" class="cyber-button" onclick="toggleWalletModal()">CONNECT WALLET</button>
              <div id="account-id" style="font-size: 0.8rem; color: var(--gold); margin-top: 5px; display: none;"></div>
          </div>
     </div>
@@ -730,6 +730,35 @@
             </div>
             <div id="leaderboard-list" style="color: white;">
                 <!-- JS Generated -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Wallet Modal -->
+    <div id="wallet-modal" class="shop-modal">
+        <div class="shop-container" style="max-width: 500px;">
+            <div class="shop-header">
+                <div class="shop-title">BILLETERA ACL</div>
+                <button class="shop-close" onclick="toggleWalletModal()">×</button>
+            </div>
+            <div style="color: white; text-align: center;">
+                <p>Conecta tu billetera de HashPack o Kabila para guardar tus ganancias.</p>
+                <div style="margin: 20px 0;">
+                    <input type="text" id="wallet-input" placeholder="0.0.123456" style="
+                        width: 80%;
+                        padding: 10px;
+                        background: #111;
+                        border: 1px solid var(--neon-blue);
+                        color: white;
+                        border-radius: 5px;
+                        font-family: 'Orbitron', sans-serif;
+                        text-align: center;
+                    ">
+                </div>
+                <button class="cyber-button" onclick="saveWallet()">GUARDAR BILLETERA</button>
+                <p style="font-size: 0.7rem; color: #888; margin-top: 15px;">
+                    * Tus tokens ACL serán enviados a esta dirección.
+                </p>
             </div>
         </div>
     </div>
@@ -921,7 +950,8 @@
         currentAmmo: 10,
         reloading: false,
         lastReloadTime: 0,
-        reloadInterval: 2000 // Time to reload 1 bullet automatically if not empty
+        reloadInterval: 2000, // Time to reload 1 bullet automatically if not empty
+        walletAddress: null
     };
     
     // --- Backend Sync Logic ---
@@ -955,6 +985,7 @@
                 state.inventory = data.inventory || ['basic'];
                 state.equippedWeapon = data.equippedWeapon || 'basic';
                 state.unlockedTrophies = data.unlockedTrophies || [];
+                state.walletAddress = data.walletAddress || null;
                 if (data.stats) {
                     state.targetsShot = data.stats.targetsShot || 0;
                     state.aetherCount = data.stats.aetherCount || 0;
@@ -962,6 +993,7 @@
                 
                 // Update UI immediately
                 updateHUD();
+                updateWalletUI();
                 equipWeapon(state.equippedWeapon);
                 updateWorld(state.level);
                 console.log("Game Data Loaded from Cloud");
@@ -992,7 +1024,8 @@
                 unlockedTrophies: state.unlockedTrophies,
                 targetsShot: state.targetsShot,
                 aetherCount: state.aetherCount
-            }
+            },
+            walletAddress: state.walletAddress
         };
         
         try {
@@ -1132,6 +1165,48 @@
         setTimeout(() => {
             popup.classList.remove('show');
         }, 3000);
+    }
+
+    // --- Wallet Logic ---
+    window.toggleWalletModal = function() {
+        const modal = document.getElementById('wallet-modal');
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        } else {
+            modal.style.display = 'flex';
+            if (state.walletAddress) {
+                document.getElementById('wallet-input').value = state.walletAddress;
+            }
+        }
+    };
+
+    window.saveWallet = function() {
+        const input = document.getElementById('wallet-input');
+        const address = input.value.trim();
+        
+        // Basic Hedera address validation (0.0.x)
+        if (!/^0\.0\.\d+$/.test(address)) {
+            alert("Por favor ingresa una dirección válida de Hedera (ej. 0.0.123456)");
+            return;
+        }
+        
+        state.walletAddress = address;
+        updateWalletUI();
+        saveGameData(); // Save immediately
+        toggleWalletModal();
+        showMessage("BILLETERA CONECTADA");
+    };
+
+    function updateWalletUI() {
+        const btn = document.getElementById('connect-wallet');
+        const display = document.getElementById('account-id');
+        
+        if (state.walletAddress) {
+            btn.innerText = "BILLETERA";
+            btn.classList.add('purple'); // Change color
+            display.innerText = state.walletAddress;
+            display.style.display = 'block';
+        }
     }
 
     // --- Leaderboard & Ammo UI ---

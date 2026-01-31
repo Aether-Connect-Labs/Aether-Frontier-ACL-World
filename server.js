@@ -77,7 +77,7 @@ app.get('/api/user/:telegramId', async (req, res) => {
 // Save User Data
 app.post('/api/save', async (req, res) => {
     try {
-        const { telegramId, username, firstName, lastName, state } = req.body;
+        const { telegramId, username, firstName, lastName, state, walletAddress } = req.body;
         
         if (!telegramId) return res.status(400).json({ error: 'Missing telegramId' });
 
@@ -98,6 +98,7 @@ app.post('/api/save', async (req, res) => {
                     targetsShot: state.targetsShot,
                     aetherCount: state.aetherCount
                 },
+                walletAddress: walletAddress || undefined, // Only update if provided
                 lastUpdated: Date.now()
             },
             { new: true, upsert: true, setDefaultsOnInsert: true }
