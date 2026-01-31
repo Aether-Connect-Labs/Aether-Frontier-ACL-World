@@ -924,13 +924,108 @@
         reloadInterval: 2000 // Time to reload 1 bullet automatically if not empty
     };
     
-    // Cargar progreso guardado
+    // --- Backend Sync Logic ---
+    let telegramUser = null;
+    
+    // Init Telegram User Data
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+            telegramUser = tg.initDataUnsafe.user;
+            console.log("Telegram User:", telegramUser);
+        } else {
+            // Mock user for local testing
+            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+                telegramUser = { id: 'test_user_123', first_name: 'Test', username: 'Tester' };
+            }
+        }
+    }
+
+    async function loadGameData() {
+        if (!telegramUser) return;
+        
+        try {
+            const res = await fetch(`/api/user/${telegramUser.id}`);
+            const json = await res.json();
+            
+            if (json.exists && json.data) {
+                const data = json.data;
+                state.balance = data.balance;
+                state.level = data.level;
+                state.inventory = data.inventory || ['basic'];
+                state.equippedWeapon = data.equippedWeapon || 'basic';
+                state.unlockedTrophies = data.unlockedTrophies || [];
+                if (data.stats) {
+                    state.targetsShot = data.stats.targetsShot || 0;
+                    state.aetherCount = data.stats.aetherCount || 0;
+                }
+                
+                // Update UI immediately
+                updateHUD();
+                equipWeapon(state.equippedWeapon);
+                updateWorld(state.level);
+                console.log("Game Data Loaded from Cloud");
+            } else {
+                console.log("New User, using default state");
+                saveGameData(); // Save initial state
+            }
+        } catch (e) {
+            console.error("Failed to load game data:", e);
+            // Fallback to localStorage logic if server fails? 
+            // For now, we rely on local state if fetch fails, but let's keep it simple.
+        }
+    }
+
+    async function saveGameData() {
+        if (!telegramUser) return;
+        
+        const payload = {
+            telegramId: telegramUser.id.toString(),
+            username: telegramUser.username,
+            firstName: telegramUser.first_name,
+            lastName: telegramUser.last_name,
+            state: {
+                balance: state.balance,
+                level: state.level,
+                inventory: state.inventory,
+                equippedWeapon: state.equippedWeapon,
+                unlockedTrophies: state.unlockedTrophies,
+                targetsShot: state.targetsShot,
+                aetherCount: state.aetherCount
+            }
+        };
+        
+        try {
+            await fetch('/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            // console.log("Game Saved");
+        } catch (e) {
+            console.error("Save failed", e);
+        }
+    }
+
+    // Auto-save interval
+    setInterval(saveGameData, 10000); // Save every 10 seconds
+
+    // Cargar progreso (Replaces localStorage logic)
+    // const savedBalance = parseFloat(localStorage.getItem('acl_balance'));
+    // ... (rest of localStorage logic commented out or removed) ...
+    // Instead we call loadGameData() at the end
+    
+    // Keeping localStorage as a fallback/cache mechanism is good practice, 
+    // but for this task we switch to Mongo. 
+    // I will comment out the initial localStorage load to prioritize Server Load.
+    
+    /* 
     const savedBalance = parseFloat(localStorage.getItem('acl_balance'));
     const savedLevel = parseInt(localStorage.getItem('acl_level'));
     const savedInv = JSON.parse(localStorage.getItem('acl_inventory'));
     const savedWeapon = localStorage.getItem('acl_weapon');
     const savedTrophies = JSON.parse(localStorage.getItem('acl_trophies'));
-    const savedStats = JSON.parse(localStorage.getItem('acl_stats')); // targetsShot, aetherCount
+    const savedStats = JSON.parse(localStorage.getItem('acl_stats')); 
 
     if (!isNaN(savedBalance)) state.balance = savedBalance;
     if (!isNaN(savedLevel)) state.level = savedLevel;
@@ -941,6 +1036,7 @@
         state.targetsShot = savedStats.targetsShot || 0;
         state.aetherCount = savedStats.aetherCount || 0;
     }
+    */
 
     const wrapper = document.getElementById('game-wrapper');
     const balanceEl = document.getElementById('balance');
@@ -1270,6 +1366,9 @@
             if (this.type === 'armed') state.balance += CONFIG.baseValue;
             state.targetsShot++;
             
+            // Check Level Up
+            maybeLevelUp();
+
             // Check Achievements
             checkAchievements();
             
@@ -1659,6 +1758,9 @@
     
     // Inicializar primer nivel
     updateWorld(state.level);
+    
+    // Load data from server
+    loadGameData();
 </script>
 </body>
 </html>

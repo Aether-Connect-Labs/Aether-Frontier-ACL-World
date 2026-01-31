@@ -16,7 +16,11 @@
   "author": "Aether Connect Labs",
   "license": "MIT",
   "dependencies": {
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.3",
-    "grammy": "^1.39.3"
+    "express": "^5.2.1",
+    "grammy": "^1.39.3",
+    "mongoose": "^9.1.5"
   }
 }
