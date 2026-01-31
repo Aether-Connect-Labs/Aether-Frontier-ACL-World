@@ -5,9 +5,18 @@
   "main": "index.html",
   "scripts": {
     "start": "node server.js",
+    "bot": "node bot.js",
     "dev": "npx http-server ."
   },
-  "keywords": ["game", "acl", "duck-hunter"],
+  "keywords": [
+    "game",
+    "acl",
+    "duck-hunter"
+  ],
   "author": "Aether Connect Labs",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "grammy": "^1.39.3"
+  }
 }
