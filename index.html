@@ -381,7 +381,7 @@
             background: rgba(255,255,255,0.1);
             border-radius: 4px;
             border: 1px solid var(--neon-purple);
-            pointer-events: none;
+            pointer-events: none; /* Crucial: permite clics a través */
             z-index: 5;
         }
 
@@ -406,6 +406,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            z-index: 100; /* Asegura que los patos estén encima de la UI decorativa */
+            cursor: crosshair;
         }
 
         /* Tienda Flotante - Removed to use Flexbox in ui-bottom */
@@ -436,6 +438,8 @@
             transform: translate(-50%, -50%);
             z-index: 999;
             box-shadow: 0 0 10px var(--neon-blue);
+            opacity: 0; /* Invisible por defecto */
+            transition: opacity 0.1s ease;
         }
         
         #custom-crosshair::after {
@@ -629,14 +633,17 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            background: rgba(0,0,0,0.6);
-            border: 1px solid var(--neon-blue);
-            padding: 10px;
+            background: rgba(0,0,0,0.3); /* Opacidad reducida */
+            border: 1px solid rgba(0, 243, 255, 0.5);
+            padding: 8px; /* Más compacto */
             border-radius: 5px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            pointer-events: none;
+            gap: 8px;
+            pointer-events: none; /* Crucial */
+            transform: scale(0.9); /* Ligeramente más pequeño */
+            transform-origin: bottom left;
+            z-index: 10; /* Encima del fondo pero debajo de los patos (z=100) */
         }
     </style>
 </head>
@@ -1576,12 +1583,35 @@
         setTimeout(() => shot.remove(), 500);
     });
 
-    window.addEventListener('mousemove', (e) => {
-        const crosshair = document.getElementById('custom-crosshair');
+    // Crosshair Interaction Logic (Prompt Maestro Fix)
+    const crosshair = document.getElementById('custom-crosshair');
+    
+    const updateCrosshairPos = (e) => {
+        if (!crosshair) return;
+        // Usar clientX/Y para evitar problemas con scroll si los hubiera
+        crosshair.style.left = e.pageX + 'px';
+        crosshair.style.top = e.pageY + 'px';
+    };
+
+    window.addEventListener('pointerdown', (e) => {
         if (crosshair) {
-            crosshair.style.left = e.pageX + 'px';
-            crosshair.style.top = e.pageY + 'px';
+            crosshair.style.opacity = '1';
+            updateCrosshairPos(e);
         }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+        if (crosshair) {
+            updateCrosshairPos(e);
+        }
+    });
+
+    window.addEventListener('pointerup', () => {
+        if (crosshair) crosshair.style.opacity = '0';
+    });
+    
+    window.addEventListener('pointercancel', () => {
+        if (crosshair) crosshair.style.opacity = '0';
     });
     
     function activateAether(ms) {
