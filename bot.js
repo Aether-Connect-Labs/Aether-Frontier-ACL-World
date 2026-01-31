@@ -42,5 +42,19 @@ bot.catch((err) => {
 });
 
 // Iniciar el bot
-console.log('🤖 Bot de Aether Frontier iniciado...');
-bot.start();
+async function startBot() {
+    try {
+        await bot.api.setMyCommands([
+            { command: 'start', description: '🎮 Jugar Aether Frontier' },
+            { command: 'help', description: 'ℹ️ Ayuda y Soporte' }
+        ]);
+        console.log('✅ Comandos de menú configurados en Telegram');
+        
+        console.log('🤖 Bot de Aether Frontier iniciado...');
+        await bot.start();
+    } catch (error) {
+        console.error('Error al iniciar el bot:', error);
+    }
+}
+
+startBot();
