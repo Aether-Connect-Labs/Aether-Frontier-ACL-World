@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Aether Connect Labs - Duck Hunter</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --gold: #ffd700;
+            --achievement-bg: linear-gradient(135deg, #1a1a2e, #16213e);
+        }
+
+        body {
+            margin: 0;
+            background: #050505;
+            color: white;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #game-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            max-height: 800px;
+            /* Default to landscape aspect for desktop */
+            aspect-ratio: 16/9;
+            border: 2px solid var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.3);
+            background: url('assets/bg-cyberpunk.jpg') no-repeat center center;
+            background-size: cover;
+            backdrop-filter: brightness(0.7);
+            cursor: crosshair;
+            transition: background-image 0.5s ease, border-color 0.3s ease, filter 0.3s ease;
+            overflow: hidden;
+        }
+
+        /* Achievement Notification */
+        #achievement-popup {
+            position: absolute;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--achievement-bg);
+            border: 2px solid var(--gold);
+            padding: 15px 30px;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 0 20px var(--gold);
+            z-index: 3000;
+            transition: top 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            pointer-events: none;
+            min-width: 300px;
+        }
+        
+        #achievement-popup.show {
+            top: 30px;
+        }
+        
+        .ach-icon {
+            font-size: 2.5rem;
+        }
+        
+        .ach-text {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .ach-title {
+            color: var(--gold);
+            font-weight: bold;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+        }
+        
+        .ach-desc {
+            color: #ddd;
+            font-size: 0.8rem;
+        }
+
+        /* Responsive Design & Mobile Adaptation */
+        @media (max-width: 768px) {
+            #game-wrapper {
+                width: 100vw;
+                height: 100vh;
+                max-width: none;
+                max-height: none;
+                border: none;
+                border-radius: 0;
+                aspect-ratio: auto;
+                background-size: cover;
+                background-position: center;
+            }
+            
+            /* Mobile HUD Adjustments */
+            #hud {
+                padding: 10px;
+                font-size: 0.8rem;
+                width: 100%;
+                box-sizing: border-box;
+                top: 0;
+                left: 0;
+                background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+                padding-bottom: 20px;
+            }
+            
+            .hud-row {
+                justify-content: space-between;
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            
+            .stat-box {
+                min-width: auto;
+            }
+            
+            /* Mobile Bottom Navigation Bar */
+            #controls {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                background: rgba(10, 10, 20, 0.95);
+                border-top: 2px solid var(--neon-blue);
+                display: flex;
+                justify-content: space-around;
+                align-items: center;
+                padding: 10px 0;
+                z-index: 150;
+                padding-bottom: max(10px, env(safe-area-inset-bottom));
+            }
+
+            /* Transform buttons into nav items */
+            #controls button {
+                position: static !important;
+                background: none !important;
+                box-shadow: none !important;
+                border: none !important;
+                display: flex !important;
+                flex-direction: column;
+                align-items: center;
+                font-size: 0.7rem !important;
+                padding: 5px !important;
+                color: #aaa !important;
+            }
+
+            #controls button::before {
+                font-size: 1.5rem;
+                margin-bottom: 2px;
+                display: block;
+            }
+
+            /* Icons for Nav */
+            #shop-trigger::before { content: "🛒"; }
+            #leaderboard-trigger::before { content: "🏆"; }
+            #trophies-trigger::before { content: "🎖️"; }
+            
+            /* Active state/Color */
+            #controls button:active { color: white !important; }
+            #shop-trigger { color: var(--neon-purple) !important; }
+            #leaderboard-trigger { color: var(--gold) !important; }
+            #trophies-trigger { color: #ff4757 !important; }
+
+            /* Reposition specific elements */
+            #weapon-display {
+                bottom: 80px; /* Above nav bar */
+                left: 50%;
+                transform: translateX(-50%);
+                font-size: 0.8rem;
+                padding: 5px 15px;
+                width: max-content;
+            }
+
+            #level-badge {
+                top: auto;
+                bottom: 130px; /* Above weapon display */
+            }
+
+            /* Wallet Button special placement */
+            #wallet-container {
+                position: absolute;
+                top: 60px; /* Below HUD */
+                right: 10px;
+                top: 10px !important;
+            }
+            
+            #connect-wallet {
+                font-size: 0.6rem !important;
+                padding: 4px 8px !important;
+            }
+
+            /* Adjust Modals for Mobile */
+            .shop-container {
+                width: 95%;
+                height: 85%;
+                padding: 15px;
+            }
+            
+            .shop-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+        }
+
+        /* Touch devices: Remove custom cursor */
+        @media (pointer: coarse) {
+            #game-wrapper {
+                cursor: auto;
+            }
+            #custom-crosshair {
+                display: none !important;
+            }
+        }
+
+        /* HUD & Controls */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #fff;
+            font-size: 1.2rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .hud-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        #ammo-container {
+            display: flex;
+            gap: 2px;
+            margin-top: 5px;
+        }
+        
+        .ammo-pip {
+            width: 8px;
+            height: 20px;
+            background: var(--neon-blue);
+            box-shadow: 0 0 5px var(--neon-blue);
+            transform: skewX(-20deg);
+        }
+        
+        .ammo-pip.empty {
+            background: #333;
+            box-shadow: none;
+        }
+
+        .stat-box {
+            text-align: center;
+            text-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--neon-blue);
+            font-variant-numeric: tabular-nums; /* Monospaced numbers */
+        }
+
+        /* Barra de Progreso ACL */
+        #progress-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60%;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            border: 1px solid var(--neon-purple);
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        #progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            box-shadow: 0 0 10px var(--neon-blue);
+            transition: width 0.3s ease;
+        }
+        
+        #level-badge {
+            position: absolute;
+            top: 70px; /* Default desktop pos */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 5px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1rem;
+            z-index: 9;
+            pointer-events: none;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        /* Entidades */
+        .target {
+            position: absolute;
+            width: 80px;
+            height: 60px;
+            user-select: none;
+            transition: transform 0.1s;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Tienda Flotante */
+        #shop-trigger {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            background: var(--neon-purple);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 20;
+            font-family: inherit;
+            font-weight: bold;
+            box-shadow: 0 0 10px var(--neon-purple);
+        }
+
+        .damage-text {
+            position: absolute;
+            color: var(--gold);
+            font-weight: bold;
+            animation: floatUp 0.8s forwards;
+            pointer-events: none;
+            z-index: 15;
+            text-shadow: 1px 1px 0 #000;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+
+        #custom-crosshair {
+            width: 40px;
+            height: 40px;
+            border: 2px solid var(--neon-blue);
+            border-radius: 50%;
+            position: absolute;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+        
+        #custom-crosshair::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 4px;
+            height: 4px;
+            background: var(--neon-blue);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #world-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2rem;
+            padding: 20px 40px;
+            background: rgba(0,0,0,0.85);
+            border: 2px solid var(--neon-blue);
+            border-radius: 12px;
+            box-shadow: 0 0 30px var(--neon-blue);
+            display: none;
+            z-index: 100;
+            text-align: center;
+            pointer-events: none;
+        }
+        
+        .aether-mode {
+            filter: grayscale(0.85) contrast(1.2);
+        }
+        .aether-mode .target {
+            filter: drop-shadow(0 0 8px var(--neon-blue)) drop-shadow(0 0 14px var(--neon-purple));
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+            animation-iteration-count: 1;
+        }
+
+        /* Shop Modal */
+        #shop-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        
+        .shop-container {
+             background: rgba(10, 10, 15, 0.95);
+             border: 2px solid var(--neon-purple);
+             padding: 25px;
+             border-radius: 15px;
+             width: 90%;
+             max-width: 700px;
+             max-height: 90vh;
+             overflow-y: auto;
+             box-shadow: 0 0 50px rgba(188, 19, 254, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.8);
+             backdrop-filter: blur(10px);
+         }
+         
+         .shop-header {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             margin-bottom: 30px;
+             border-bottom: 2px solid var(--neon-blue);
+             padding-bottom: 15px;
+         }
+         
+         .shop-title {
+             color: var(--neon-blue);
+             font-size: 2rem;
+             text-transform: uppercase;
+             text-shadow: 0 0 10px var(--neon-blue);
+             letter-spacing: 2px;
+         }
+         
+         .shop-close {
+             background: none;
+             border: 1px solid var(--neon-blue);
+             color: var(--neon-blue);
+             width: 40px;
+             height: 40px;
+             border-radius: 50%;
+             font-size: 1.5rem;
+             cursor: pointer;
+             transition: all 0.3s;
+             display: flex;
+             align-items: center;
+             justify-content: center;
+         }
+
+         .shop-close:hover {
+             background: var(--neon-blue);
+             color: #000;
+             box-shadow: 0 0 15px var(--neon-blue);
+         }
+        
+        .shop-section {
+            margin-bottom: 20px;
+        }
+        
+        .shop-section h3 {
+            color: var(--gold);
+            border-bottom: 1px solid #333;
+            padding-bottom: 5px;
+        }
+        
+        .shop-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+        }
+        
+        .shop-item {
+            background: #222;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .shop-item:hover {
+            border-color: var(--neon-blue);
+            transform: translateY(-2px);
+        }
+        
+        .shop-item.owned {
+            border-color: var(--gold);
+            background: #2a2a00;
+        }
+        
+        .shop-item.equipped {
+            border-color: var(--neon-green, #39ff14);
+            box-shadow: 0 0 10px var(--neon-green, #39ff14);
+        }
+        
+        .item-icon {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+        
+        .item-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .item-cost {
+            color: var(--gold);
+            font-size: 0.8rem;
+        }
+        
+        .item-desc {
+            font-size: 0.7rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+
+        /* Weapon Display in HUD */
+        #weapon-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid var(--neon-blue);
+            padding: 10px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+        <div id="achievement-popup">
+            <div class="ach-icon">🏆</div>
+            <div class="ach-text">
+                <div class="ach-title">Logro Desbloqueado</div>
+                <div class="ach-desc" id="ach-desc-text">Cazador Novato</div>
+            </div>
+        </div>
+
+        <div id="custom-crosshair"></div>
+        <div id="world-message"></div>
+        <div id="hud">
+            <div class="hud-row">
+                <div class="stat-box">
+                    <div class="label">ACL BALANCE</div>
+                    <div id="balance" class="stat-value">0.000000</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">NIVEL</div>
+                    <div class="value" id="level">1</div>
+                </div>
+            </div>
+            <div class="hud-row">
+                <div class="stat-box">
+                    <div class="label">MUNICIÓN</div>
+                    <div id="ammo-container">
+                        <!-- Generated by JS -->
+                    </div>
+                </div>
+                <div class="stat-box">
+                     <div class="label">MULTIPLIER</div>
+                     <div id="mult" class="stat-value">x1.0</div>
+                 </div>
+            </div>
+        </div>
+        
+        <div id="progress-container">
+            <div id="progress-fill"></div>
+        </div>
+        <div id="level-badge">NIVEL 1: GRANJA DIGITAL</div>
+
+        <div id="weapon-display">
+            <span style="font-size: 1.5rem;" id="current-weapon-icon">🔫</span>
+            <span id="current-weapon-name">PISTOLA BÁSICA</span>
+        </div>
+
+        <div id="controls">
+            <button id="shop-trigger" onclick="toggleShop()">TIENDA / ARMAS</button>
+            <button id="leaderboard-trigger" onclick="toggleLeaderboard()" style="
+                position: absolute;
+                right: 20px;
+                bottom: 70px;
+                background: var(--gold);
+                border: none;
+                color: black;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                z-index: 20;
+                font-family: inherit;
+                font-weight: bold;
+                box-shadow: 0 0 10px var(--gold);
+            ">🏆 RANKING</button>
+            
+            <button id="trophies-trigger" onclick="toggleTrophies()" style="
+                position: absolute;
+                right: 150px;
+                bottom: 70px;
+                background: #ff4757;
+                border: none;
+                color: white;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                z-index: 20;
+                font-family: inherit;
+                font-weight: bold;
+                box-shadow: 0 0 10px #ff4757;
+            ">🎖️ LOGROS</button>
+
+            <div id="wallet-container" style="pointer-events: auto; position: absolute; top: 20px; right: 20px; z-index: 101;">
+                 <button id="connect-wallet" style="
+                     background: rgba(0,0,0,0.5); 
+                     border: 1px solid var(--neon-blue); 
+                     color: var(--neon-blue); 
+                     padding: 5px 15px; 
+                     font-family: inherit; 
+                     cursor: pointer; 
+                     text-transform: uppercase;
+                     font-weight: bold;
+                     box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
+                 ">CONNECT WALLET</button>
+                 <div id="account-id" style="font-size: 0.8rem; color: var(--gold); margin-top: 5px; display: none;"></div>
+             </div>
+        </div>
+    </div>
+    
+    <!-- Leaderboard Modal -->
+    <div id="leaderboard-modal" class="shop-modal">
+        <div class="shop-container">
+            <div class="shop-header">
+                <div class="shop-title">TOP AGENTES ACL</div>
+                <button class="shop-close" onclick="toggleLeaderboard()">×</button>
+            </div>
+            <div id="leaderboard-list" style="color: white;">
+                <!-- JS Generated -->
+            </div>
+        </div>
+    </div>
+
+<div id="shop-modal">
+    <div class="shop-container">
+        <div class="shop-header">
+            <div class="shop-title">Arsenal Aether</div>
+            <button class="shop-close" onclick="toggleShop()">×</button>
+        </div>
+        
+        <div class="shop-section">
+            <h3>ARMAS (Permanentes)</h3>
+            <div class="shop-grid" id="weapons-grid"></div>
+        </div>
+        
+        <div class="shop-section">
+            <h3>POWER-UPS (Un uso)</h3>
+            <div class="shop-grid" id="powerups-grid"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Trophies Modal -->
+    <div id="trophies-modal" class="shop-modal">
+        <div class="shop-container">
+            <div class="shop-header">
+                <div class="shop-title">GALERÍA DE TROFEOS</div>
+                <button class="shop-close" onclick="toggleTrophies()">×</button>
+            </div>
+            <div id="trophies-list" class="shop-grid">
+                <!-- JS Generated -->
+            </div>
+        </div>
+    </div>
+    
+    <script type="module">
+    // Telegram Mini App Init
+    if (window.Telegram && window.Telegram.WebApp) {
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        tg.enableClosingConfirmation();
+        
+        // Theme integration
+        document.body.style.backgroundColor = tg.themeParams.bg_color || '#050505';
+        
+        // Handle Back Button for Modals
+        tg.BackButton.onClick(() => {
+            const modals = document.querySelectorAll('.shop-modal');
+            let closed = false;
+            modals.forEach(m => {
+                if (m.style.display === 'flex') {
+                    m.style.display = 'none';
+                    closed = true;
+                }
+            });
+            if (closed) tg.BackButton.hide();
+        });
+    }
+
+    let HashConnect;
+    try {
+        // Try to load HashConnect from a reliable CDN
+        const module = await import('https://esm.sh/hashconnect@2.0.10?bundle');
+        HashConnect = module.HashConnect;
+    } catch (e) {
+        console.error("Failed to load HashConnect", e);
+        // Fallback or alert
+        const btn = document.getElementById('connect-wallet');
+        if(btn) btn.innerText = "LOGIN ERROR";
+    }
+
+    let hashConnect;
+    let saveData = {
+        topic: "",
+        pairingString: "",
+        privateKey: "",
+        pairedWalletData: null,
+        pairedAccounts: []
+    };
+
+    const appMetadata = {
+        name: "Aether Connect Labs",
+        description: "Duck Hunter Game",
+        icon: window.location.origin + "/assets/acl-logo.png"
+    };
+
+    async function initHashConnect() {
+        if (!HashConnect) return;
+        
+        hashConnect = new HashConnect();
+        
+        // Setup events
+        hashConnect.foundExtensionEvent.on((data) => {
+            console.log("Found extension", data);
+            // Optional: Auto-connect if extension found? 
+            // Better wait for user click.
+        });
+        
+        hashConnect.pairingEvent.on((data) => {
+            console.log("Paired with wallet", data);
+            saveData.pairedWalletData = data.metadata;
+            saveData.pairedAccounts = data.accountIds;
+            
+            const accountId = data.accountIds[0];
+            const btn = document.getElementById('connect-wallet');
+            if(btn) btn.style.display = 'none';
+            
+            const accEl = document.getElementById('account-id');
+            if(accEl) {
+                accEl.innerText = accountId;
+                accEl.style.display = 'block';
+            }
+            
+            showMessage(`CONECTADO: ${accountId}`);
+        });
+
+        const initData = await hashConnect.init(appMetadata, "testnet", false);
+        saveData.topic = initData.topic;
+        saveData.pairingString = initData.pairingString;
+        saveData.privateKey = initData.privateKey;
+    }
+
+    window.connectWallet = function() {
+        if (!hashConnect) {
+            if (!HashConnect) alert("Librería HashConnect no cargada. Verifique su conexión.");
+            return;
+        }
+        hashConnect.connectToLocalWallet();
+    };
+    
+    // Auto init
+    initHashConnect();
+
+    const btn = document.getElementById('connect-wallet');
+    if(btn) btn.addEventListener('click', window.connectWallet);
+
+
+    const CONFIG = {
+        baseValue: 0.000001,
+        maxTargets: 6,
+        aetherIntervalMs: 60000
+    };
+
+    const WEAPONS = {
+        basic: { name: "Pistola Básica", cost: 0, damage: 1, icon: "🔫", desc: "Daño estándar" },
+        shotgun: { name: "Escopeta", cost: 0.00005, damage: 1, icon: "🧨", desc: "Radio de impacto pequeño", area: 100 },
+        rocket: { name: "Lanzacohetes", cost: 0.0002, damage: 1, icon: "🚀", desc: "Gran explosión (x0.5 pts)", area: 250, multiplier: 0.5 },
+        sniper: { name: "Rifle Precisión", cost: 0.0001, damage: 1, icon: "🔭", desc: "Doble puntos", multiplier: 2 },
+        laser: { name: "Rayo Láser", cost: 0.0005, damage: 1, icon: "🔦", desc: "Disparo instantáneo", speed: 2 },
+        quantum: { name: "Arma Cuántica", cost: 0.001, damage: 1, icon: "⚛️", desc: "Puntos aleatorios (0.1x - 100x)", randomMul: true }
+    };
+
+    const POWERUPS = {
+        mul2: { name: "Multiplicador x2", cost: 0.00002, duration: 30000, icon: "✖️2", type: "multiplier", value: 2 },
+        mul5: { name: "Multiplicador x5", cost: 0.00005, duration: 30000, icon: "✖️5", type: "multiplier", value: 5 },
+        mul10: { name: "Multiplicador x10", cost: 0.0001, duration: 30000, icon: "✖️10", type: "multiplier", value: 10 },
+        autoaim: { name: "Auto-Aim", cost: 0.0002, duration: 10000, icon: "🎯", type: "autoaim" },
+        bomb: { name: "Bomba Patológica", cost: 0.0003, duration: 0, icon: "💣", type: "bomb" },
+        freeze: { name: "Congelamiento", cost: 0.00015, duration: 15000, icon: "❄️", type: "freeze" }
+    };
+
+    const TROPHIES = [
+        { id: "hunter_1", name: "Cazador Novato", desc: "Elimina 10 patos", icon: "🦆", condition: (s) => s.targetsShot >= 10 },
+        { id: "hunter_2", name: "Francotirador", desc: "Elimina 100 patos", icon: "🎯", condition: (s) => s.targetsShot >= 100 },
+        { id: "hunter_3", name: "Genocida", desc: "Elimina 500 patos", icon: "☠️", condition: (s) => s.targetsShot >= 500 },
+        { id: "rich_1", name: "Ahorrador", desc: "Acumula 0.0001 ACL", icon: "💰", condition: (s) => s.balance >= 0.0001 },
+        { id: "rich_2", name: "Magnate ACL", desc: "Acumula 0.001 ACL", icon: "💎", condition: (s) => s.balance >= 0.001 },
+        { id: "survivor_1", name: "Explorador", desc: "Alcanza el Nivel 2", icon: "🌲", condition: (s) => s.level >= 2 },
+        { id: "survivor_2", name: "Veterano", desc: "Alcanza el Nivel 5", icon: "👹", condition: (s) => s.level >= 5 },
+        { id: "aether_1", name: "Iluminado", desc: "Activa Modo Aether 1 vez", icon: "⚡", condition: (s) => s.aetherCount >= 1 }
+    ];
+
+    let state = {
+        balance: 0,
+        multiplier: 1,
+        level: 1,
+        targetsShot: 0,
+        aetherActive: false,
+        aetherCount: 0,
+        inventory: ['basic'],
+        equippedWeapon: 'basic',
+        activePowerups: {}, // map: type -> expiryTime
+        unlockedTrophies: [],
+        
+        // Ammo System
+        maxAmmo: 10,
+        currentAmmo: 10,
+        reloading: false,
+        lastReloadTime: 0,
+        reloadInterval: 2000 // Time to reload 1 bullet automatically if not empty
+    };
+    
+    // Cargar progreso guardado
+    const savedBalance = parseFloat(localStorage.getItem('acl_balance'));
+    const savedLevel = parseInt(localStorage.getItem('acl_level'));
+    const savedInv = JSON.parse(localStorage.getItem('acl_inventory'));
+    const savedWeapon = localStorage.getItem('acl_weapon');
+    const savedTrophies = JSON.parse(localStorage.getItem('acl_trophies'));
+    const savedStats = JSON.parse(localStorage.getItem('acl_stats')); // targetsShot, aetherCount
+
+    if (!isNaN(savedBalance)) state.balance = savedBalance;
+    if (!isNaN(savedLevel)) state.level = savedLevel;
+    if (savedInv) state.inventory = savedInv;
+    if (savedWeapon && WEAPONS[savedWeapon]) state.equippedWeapon = savedWeapon;
+    if (savedTrophies) state.unlockedTrophies = savedTrophies;
+    if (savedStats) {
+        state.targetsShot = savedStats.targetsShot || 0;
+        state.aetherCount = savedStats.aetherCount || 0;
+    }
+
+    const wrapper = document.getElementById('game-wrapper');
+    const balanceEl = document.getElementById('balance');
+    const multEl = document.getElementById('mult');
+    const progressEl = document.getElementById('progress-fill');
+    const worldMsgEl = document.getElementById('world-message');
+    const levelBadgeEl = document.getElementById('level-badge');
+    const activeTargets = new Set();
+
+    const TARGET_TYPES = {
+        basic: { value: CONFIG.baseValue, sprite: 'assets/duck-cyber.png', emoji: '🦆', speedMul: 1 },
+        golden: { value: CONFIG.baseValue * 10, sprite: 'assets/duck-gold.png', emoji: '🦆✨', speedMul: 1.1 },
+        armed: { value: CONFIG.baseValue * 5, sprite: 'assets/duck-armed.png', emoji: '🦆🔫', speedMul: 1.3 },
+        boss: { value: CONFIG.baseValue * 1000, sprite: 'assets/duck-boss.png', emoji: '🐲🦆', speedMul: 0.8 },
+        aether: { value: 0, sprite: 'assets/acl-logo.png', emoji: '⚡', speedMul: 1.6 }
+    };
+
+    const WORLDS = {
+        1: { name: "Granja Digital", bg: "url('assets/world-farm.jpg')", color: "#39ff14", threshold: 0.0001 },
+        2: { name: "Bosque Neon", bg: "url('assets/world-forest.jpg')", color: "#00f3ff", threshold: 0.001 },
+        3: { name: "Ciudad Cluster", bg: "url('assets/world-city.jpg')", color: "#ff00ff", threshold: 0.01 },
+        4: { name: "Espacio Aether", bg: "url('assets/world-space.jpg')", color: "#bc13fe", threshold: 0.1 },
+        5: { name: "Infierno del Código", bg: "url('assets/world-hell.jpg')", color: "#ff4d00", threshold: 1.0 }
+    };
+
+    window.toggleTrophies = function() {
+        const modal = document.getElementById('trophies-modal');
+        const list = document.getElementById('trophies-list');
+        
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        } else {
+            list.innerHTML = '';
+            TROPHIES.forEach(t => {
+                const unlocked = state.unlockedTrophies.includes(t.id);
+                const el = document.createElement('div');
+                el.className = `shop-item ${unlocked ? 'equipped' : ''}`;
+                el.style.opacity = unlocked ? 1 : 0.5;
+                el.style.borderColor = unlocked ? 'var(--gold)' : '#444';
+                
+                el.innerHTML = `
+                    <div class="item-icon">${unlocked ? t.icon : '🔒'}</div>
+                    <div class="item-name" style="color: ${unlocked ? 'var(--gold)' : '#888'}">${t.name}</div>
+                    <div class="item-desc">${t.desc}</div>
+                    ${unlocked ? '<div style="color:var(--neon-green); font-size:0.7rem; margin-top:5px;">DESBLOQUEADO</div>' : ''}
+                `;
+                list.appendChild(el);
+            });
+            modal.style.display = 'flex';
+        }
+    };
+    
+    function checkAchievements() {
+        TROPHIES.forEach(t => {
+            if (!state.unlockedTrophies.includes(t.id)) {
+                if (t.condition(state)) {
+                    unlockAchievement(t);
+                }
+            }
+        });
+        
+        // Save stats
+        localStorage.setItem('acl_stats', JSON.stringify({
+            targetsShot: state.targetsShot,
+            aetherCount: state.aetherCount
+        }));
+    }
+    
+    function unlockAchievement(t) {
+        state.unlockedTrophies.push(t.id);
+        localStorage.setItem('acl_trophies', JSON.stringify(state.unlockedTrophies));
+        
+        // Show Popup
+        const popup = document.getElementById('achievement-popup');
+        const desc = document.getElementById('ach-desc-text');
+        desc.innerText = t.name;
+        popup.classList.add('show');
+        
+        // Play sound
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(440, ctx.currentTime);
+        osc.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.5);
+        
+        setTimeout(() => {
+            popup.classList.remove('show');
+        }, 3000);
+    }
+
+    // --- Leaderboard & Ammo UI ---
+    window.toggleLeaderboard = function() {
+        const modal = document.getElementById('leaderboard-modal');
+        const list = document.getElementById('leaderboard-list');
+        
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+        } else {
+            // Mock Data
+            const leaders = [
+                { name: "ACL_Master", score: 420.5, rank: "🥇" },
+                { name: "NeonDuck", score: 380.2, rank: "🥈" },
+                { name: "CryptoHunter", score: 150.0, rank: "🥉" },
+                { name: "You", score: state.balance, rank: "4" },
+                { name: "Bot_77", score: 12.5, rank: "5" },
+            ];
+            
+            list.innerHTML = leaders.map(l => `
+                <div style="display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; font-size: 1.2rem;">
+                    <span>${l.rank} ${l.name}</span>
+                    <span style="color: var(--gold);">${l.score.toFixed(6)} ACL</span>
+                </div>
+            `).join('');
+            
+            modal.style.display = 'flex';
+        }
+    };
+
+    function updateAmmoUI() {
+        const container = document.getElementById('ammo-container');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        for (let i = 0; i < state.maxAmmo; i++) {
+            const pip = document.createElement('div');
+            pip.className = `ammo-pip ${i < state.currentAmmo ? '' : 'empty'}`;
+            container.appendChild(pip);
+        }
+    }
+    
+    function tryShoot() {
+        if (state.currentAmmo > 0) {
+            state.currentAmmo--;
+            updateAmmoUI();
+            
+            // Reload logic start
+            if (state.currentAmmo < state.maxAmmo) {
+                // We rely on update loop for auto reload
+            }
+            return true;
+        } else {
+            showMessage("⚠️ RECARGANDO... ⚠️");
+            return false;
+        }
+    }
+
+    function updateLoop() {
+        // ... existing loop content can stay, we hook into requestAnimationFrame or just setInterval
+        
+        // Auto Reload Logic
+        const now = Date.now();
+        if (state.currentAmmo < state.maxAmmo && now - state.lastReloadTime > state.reloadInterval) {
+            state.currentAmmo++;
+            state.lastReloadTime = now;
+            updateAmmoUI();
+        }
+        
+        requestAnimationFrame(updateLoop);
+    }
+    requestAnimationFrame(updateLoop);
+
+    // --- GAME LOGIC ---
+
+    function getRandomType() {
+        const r = Math.random();
+        // Probabilidades dinámicas según nivel
+        if (state.level === 1) {
+            if (r < 0.90) return 'basic';
+            return 'golden';
+        }
+        if (state.level === 2) {
+            if (r < 0.70) return 'basic';
+            if (r < 0.90) return 'golden';
+            return 'armed';
+        }
+        if (state.level === 3) {
+            if (r < 0.50) return 'basic';
+            if (r < 0.80) return 'golden';
+            if (r < 0.95) return 'armed';
+            return 'boss';
+        }
+        // Niveles altos
+        if (r < 0.40) return 'basic';
+        if (r < 0.70) return 'golden';
+        if (r < 0.90) return 'armed';
+        return 'boss';
+    }
+
+    function showMessage(text, duration = 2000) {
+        worldMsgEl.textContent = text;
+        worldMsgEl.style.display = 'block';
+        worldMsgEl.style.opacity = '1';
+        setTimeout(() => {
+            worldMsgEl.style.opacity = '0';
+            setTimeout(() => {
+                worldMsgEl.style.display = 'none';
+            }, 300);
+        }, duration);
+    }
+
+    function updateWorld(level) {
+        const world = WORLDS[level] || WORLDS[5];
+        wrapper.style.backgroundImage = world.bg;
+        wrapper.style.borderColor = world.color;
+        levelBadgeEl.innerText = `NIVEL ${level}: ${world.name.toUpperCase()}`;
+        levelBadgeEl.style.color = world.color;
+        levelBadgeEl.style.borderColor = world.color;
+        
+        showMessage(`¡NIVEL ${level}!\n${world.name}`, 3000);
+        
+        // Ajustar multiplicador base
+        state.multiplier = 1 + (level - 1) * 0.5;
+        multEl.innerText = `x${state.multiplier.toFixed(1)}`;
+    }
+
+    // Clase para manejar los objetivos
+    class Target {
+        constructor(type = getRandomType()) {
+            this.el = document.createElement('div');
+            this.el.className = 'target';
+            this.type = type;
+            this.setup();
+        }
+
+        setup() {
+            const t = TARGET_TYPES[this.type] || TARGET_TYPES.basic;
+            this.value = t.value;
+            this.el.innerHTML = t.emoji;
+            this.el.style.fontSize = '40px';
+            const img = new Image();
+            img.onload = () => {
+                this.el.style.backgroundImage = `url('${t.sprite}')`;
+                this.el.innerHTML = '';
+            };
+            img.src = t.sprite;
+            
+            // Posición responsive
+            const wrapperW = wrapper.offsetWidth;
+            const wrapperH = wrapper.offsetHeight;
+            
+            this.x = -80; // Empezar fuera
+            this.y = Math.random() * (wrapperH - 100) + 50;
+            
+            // Velocidad base + incremento por nivel
+            const levelSpeed = 1 + (state.level * 0.15);
+            // Fórmula pulida para dificultad progresiva
+            this.speed = (Math.random() * 2 + 1) * (1 + state.level * 0.15);
+            
+            // Ajustar para pantallas pequeñas (más lento si es móvil)
+            if (window.innerWidth < 768) this.speed *= 0.7;
+
+            this.el.style.left = `${this.x}px`;
+            this.el.style.top = `${this.y}px`;
+
+            // Soporte Touch y Click
+            this.el.addEventListener('pointerdown', (e) => this.hit(e));
+            
+            wrapper.appendChild(this.el);
+            activeTargets.add(this);
+            this.animate();
+        }
+
+        animate() {
+            const move = () => {
+                if (!this.el.parentNode) return;
+                
+                // Check freeze
+                let currentSpeed = this.speed;
+                if (state.activePowerups.freeze && Date.now() < state.activePowerups.freeze.expiry) {
+                    currentSpeed *= 0.1; // 90% slower
+                }
+
+                this.x += currentSpeed;
+                this.el.style.left = `${this.x}px`;
+                
+                // Efecto de oscilación
+                this.el.style.transform = `translateY(${Math.sin(this.x / 40) * 15}px)`;
+
+                if (this.x > wrapper.offsetWidth) {
+                    this.remove();
+                } else {
+                    requestAnimationFrame(move);
+                }
+            };
+            requestAnimationFrame(move);
+        }
+
+        hit(e, fromShotgun = false) {
+            e.stopPropagation();
+            if (this.hitProcessed) return;
+
+            // Check Ammo (only if not shotgun area effect, which is free/secondary)
+            if (!fromShotgun && !tryShoot()) return;
+
+            this.hitProcessed = true;
+
+            if (this.type === 'aether') {
+                activateAether(10000);
+                this.showFeedback(e.clientX, e.clientY, 0);
+                this.remove();
+                playLaserSound();
+                return;
+            }
+
+            // Weapon Logic
+            const weapon = WEAPONS[state.equippedWeapon];
+            let weaponMul = 1;
+            
+            if (weapon.multiplier) weaponMul = weapon.multiplier;
+            if (weapon.randomMul) weaponMul = (Math.random() * 100 + 0.1);
+
+            // Powerup Multiplier Logic
+            let powerupMul = 1;
+            if (state.activePowerups.multiplier && Date.now() < state.activePowerups.multiplier.expiry) {
+                powerupMul = state.activePowerups.multiplier.value;
+            }
+
+            const reward = this.value * state.multiplier * weaponMul * powerupMul;
+            state.balance += reward;
+            if (this.type === 'armed') state.balance += CONFIG.baseValue;
+            state.targetsShot++;
+            
+            // Check Achievements
+            checkAchievements();
+            
+            // Shotgun Logic
+            if (weapon.area && !fromShotgun) {
+                const rect = this.el.getBoundingClientRect();
+                const cx = rect.left + rect.width/2;
+                const cy = rect.top + rect.height/2;
+                
+                activeTargets.forEach(t => {
+                    if (t === this) return;
+                    const tRect = t.el.getBoundingClientRect();
+                    const tcx = tRect.left + tRect.width/2;
+                    const tcy = tRect.top + tRect.height/2;
+                    const dist = Math.hypot(cx - tcx, cy - tcy);
+                    if (dist < weapon.area) {
+                        // Simulate hit event
+                        t.hit({ stopPropagation(){}, clientX: tcx, clientY: tcy }, true);
+                    }
+                });
+            }
+
+            this.showFeedback(e.clientX, e.clientY, reward);
+            this.spawnParticles(e.clientX, e.clientY);
+            this.updateHUD();
+            this.remove();
+            
+            playLaserSound();
+        }
+
+        showFeedback(x, y, val) {
+            const txt = document.createElement('div');
+            txt.className = 'damage-text';
+            // Ajustar posición si el evento no tiene clientX (auto-aim)
+            const posX = x || (this.x + wrapper.offsetLeft);
+            const posY = y || (this.y + wrapper.offsetTop);
+            
+            txt.style.left = `${posX}px`;
+            txt.style.top = `${posY}px`;
+            txt.innerText = val > 0 ? `+${val.toFixed(6)}` : "AETHER!";
+            document.body.appendChild(txt); // Append to body to avoid overflow hidden issues if near edge
+            setTimeout(() => txt.remove(), 800);
+        }
+
+        spawnParticles(x, y) {
+            // Reducir partículas en móvil para rendimiento
+            const isMobile = window.innerWidth < 768;
+            const count = isMobile ? 5 : 12;
+            
+            const rect = this.el.getBoundingClientRect();
+            const startX = x || (rect.left + rect.width/2);
+            const startY = y || (rect.top + rect.height/2);
+
+            for (let i = 0; i < count; i++) {
+                const p = document.createElement('div');
+                const size = Math.random() * 6 + 3;
+                p.style.position = 'absolute';
+                p.style.width = `${size}px`;
+                p.style.height = `${size}px`;
+                p.style.borderRadius = '50%';
+                p.style.background = Math.random() > 0.5 ? 'var(--neon-blue)' : 'var(--neon-purple)';
+                
+                p.style.left = `${startX}px`;
+                p.style.top = `${startY}px`;
+                p.style.pointerEvents = 'none';
+                p.style.zIndex = '9999'; // Encima de todo
+                
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * 40 + 20;
+                const targetX = startX + Math.cos(angle) * dist;
+                const targetY = startY + Math.sin(angle) * dist;
+                p.style.opacity = '1';
+                document.body.appendChild(p);
+                
+                const duration = 300 + Math.random() * 300;
+                const startTime = performance.now();
+                
+                const animate = (t) => {
+                    const elapsed = t - startTime;
+                    const k = Math.min(elapsed / duration, 1);
+                    const cx = startX + (targetX - startX) * k;
+                    const cy = startY + (targetY - startY) * k;
+                    p.style.left = `${cx}px`;
+                    p.style.top = `${cy}px`;
+                    p.style.opacity = `${1 - k}`;
+                    if (k < 1) requestAnimationFrame(animate);
+                    else p.remove();
+                };
+                requestAnimationFrame(animate);
+            }
+        }
+
+        updateHUD() {
+            balanceEl.innerText = state.balance.toFixed(6);
+            
+            // Guardar progreso localmente
+            localStorage.setItem('acl_balance', state.balance);
+            localStorage.setItem('acl_level', state.level);
+            
+            // Progreso hacia el siguiente nivel
+            const currentWorld = WORLDS[state.level];
+            const nextThreshold = currentWorld ? currentWorld.threshold : Infinity;
+            
+            // Si es infinito (último nivel), usar una meta arbitraria o loop
+            let progress = 0;
+            if (nextThreshold !== Infinity) {
+                const prevThreshold = state.level > 1 ? WORLDS[state.level - 1].threshold : 0;
+                const range = nextThreshold - prevThreshold;
+                const current = state.balance - prevThreshold;
+                progress = Math.min((current / range) * 100, 100);
+            } else {
+                progress = 100;
+            }
+            
+            progressEl.style.width = `${progress}%`;
+            
+            maybeLevelUp();
+        }
+
+        remove() {
+            if (this.el.parentNode) this.el.remove();
+            activeTargets.delete(this);
+        }
+    }
+
+    // Spawner loop con dificultad dinámica
+    function spawnLoop() {
+        // Calcular spawn rate basado en nivel
+        // Nivel 1: 1500ms, Nivel 5: 600ms
+        const rate = Math.max(1500 - (state.level * 200), 500);
+        
+        if (document.querySelectorAll('.target').length < CONFIG.maxTargets) {
+            new Target();
+        }
+        setTimeout(spawnLoop, rate);
+    }
+    // Iniciar loop
+    spawnLoop();
+
+    setInterval(() => {
+        if (document.querySelectorAll('.target').length < CONFIG.maxTargets) {
+            new Target('aether');
+        }
+    }, CONFIG.aetherIntervalMs);
+
+    // Audio procedimental (sin archivos externos)
+    function playLaserSound() {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sawtooth';
+        
+        // Pitch variation based on weapon
+        let freqStart = 880;
+        let freqEnd = 110;
+        
+        const w = WEAPONS[state.equippedWeapon];
+        if (w.name.includes("Escopeta")) { freqStart = 200; freqEnd = 50; osc.type = 'square'; }
+        if (w.name.includes("Láser")) { freqStart = 1500; freqEnd = 1000; osc.type = 'sine'; }
+        
+        osc.frequency.setValueAtTime(freqStart, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freqEnd, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.1);
+    }
+
+    window.toggleShop = function() {
+        const modal = document.getElementById('shop-modal');
+        const tg = window.Telegram?.WebApp;
+        
+        if (modal.style.display === 'flex') {
+            modal.style.display = 'none';
+            if(tg) tg.BackButton.hide();
+        } else {
+            modal.style.display = 'flex';
+            renderShop();
+            if(tg) tg.BackButton.show();
+        }
+    }
+    
+    function renderShop() {
+        const wGrid = document.getElementById('weapons-grid');
+        const pGrid = document.getElementById('powerups-grid');
+        wGrid.innerHTML = '';
+        pGrid.innerHTML = '';
+        
+        // Render Weapons
+        Object.entries(WEAPONS).forEach(([id, w]) => {
+            const el = document.createElement('div');
+            const owned = state.inventory.includes(id);
+            const equipped = state.equippedWeapon === id;
+            
+            el.className = `shop-item ${owned ? 'owned' : ''} ${equipped ? 'equipped' : ''}`;
+            el.innerHTML = `
+                <div class="item-icon">${w.icon}</div>
+                <div class="item-name">${w.name}</div>
+                ${!owned ? `<div class="item-cost">${w.cost} ACL</div>` : '<div class="item-cost">ADQUIRIDO</div>'}
+                <div class="item-desc">${w.desc}</div>
+            `;
+            el.onclick = () => {
+                if (owned) equipWeapon(id);
+                else buyWeapon(id);
+            };
+            wGrid.appendChild(el);
+        });
+        
+        // Render Powerups
+        Object.entries(POWERUPS).forEach(([id, p]) => {
+            const el = document.createElement('div');
+            el.className = 'shop-item';
+            el.innerHTML = `
+                <div class="item-icon">${p.icon}</div>
+                <div class="item-name">${p.name}</div>
+                <div class="item-cost">${p.cost} ACL</div>
+                <div class="item-desc">${p.duration > 0 ? (p.duration/1000)+'s' : 'Instant'}</div>
+            `;
+            el.onclick = () => buyPowerup(id);
+            pGrid.appendChild(el);
+        });
+    }
+    
+    function buyWeapon(id) {
+        const w = WEAPONS[id];
+        if (state.balance >= w.cost) {
+            state.balance -= w.cost;
+            state.inventory.push(id);
+            equipWeapon(id);
+            renderShop();
+            updateHUD();
+            showMessage(`¡${w.name} ADQUIRIDA!`);
+        } else {
+            alert("Fondos insuficientes");
+        }
+    }
+    
+    function equipWeapon(id) {
+        state.equippedWeapon = id;
+        renderShop();
+        
+        // Update HUD
+        document.getElementById('current-weapon-icon').innerText = WEAPONS[id].icon;
+        document.getElementById('current-weapon-name').innerText = WEAPONS[id].name.toUpperCase();
+        
+        localStorage.setItem('acl_weapon', id);
+        localStorage.setItem('acl_inventory', JSON.stringify(state.inventory));
+    }
+    
+    function buyPowerup(id) {
+        const p = POWERUPS[id];
+        if (state.balance >= p.cost) {
+            state.balance -= p.cost;
+            updateHUD();
+            
+            if (p.type === 'bomb') {
+                // Destroy all targets
+                document.querySelectorAll('.target').forEach(el => {
+                    // Trigger click event manually
+                    el.dispatchEvent(new Event('pointerdown'));
+                });
+                wrapper.classList.add('shake');
+                setTimeout(() => wrapper.classList.remove('shake'), 500);
+                showMessage("💣 BOOM 💣");
+            } else {
+                // Activate time-based powerup
+                const expiry = Date.now() + p.duration;
+                // Store metadata (value for multipliers)
+                state.activePowerups[p.type] = { expiry, value: p.value };
+                
+                if (p.type === 'autoaim') activateAether(p.duration);
+                if (p.type === 'freeze') showMessage("❄️ TIEMPO CONGELADO ❄️");
+                if (p.type === 'multiplier') showMessage(`✖️ MULTIPLICADOR x${p.value} ACTIVADO`);
+            }
+            toggleShop(); // Close shop to play
+        } else {
+            alert("Fondos insuficientes");
+        }
+    }
+
+    // Initialize weapon display
+    equipWeapon(state.equippedWeapon);
+
+    // Disparo fallido (clic en fondo)
+    wrapper.addEventListener('pointerdown', (e) => {
+        // Ignore clicks on HUD/UI
+        if (e.target.closest('.shop-modal') || 
+            e.target.closest('#hud') || 
+            e.target.closest('.btn') || 
+            e.target.closest('#shop-trigger') ||
+            e.target.closest('#controls')) return;
+
+        if (!tryShoot()) return;
+
+        playLaserSound(); // Sonido de fallo
+        
+        // Efecto visual de disparo
+        const shot = document.createElement('div');
+        shot.style.position = 'absolute';
+        shot.style.left = (e.clientX - 5) + 'px';
+        shot.style.top = (e.clientY - 5) + 'px';
+        shot.style.width = '10px';
+        shot.style.height = '10px';
+        shot.style.background = 'rgba(255, 255, 255, 0.8)';
+        shot.style.borderRadius = '50%';
+        shot.style.pointerEvents = 'none';
+        shot.style.animation = 'ping 0.5s forwards';
+        wrapper.appendChild(shot);
+        setTimeout(() => shot.remove(), 500);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        const crosshair = document.getElementById('custom-crosshair');
+        if (crosshair) {
+            crosshair.style.left = e.pageX + 'px';
+            crosshair.style.top = e.pageY + 'px';
+        }
+    });
+    
+    function activateAether(ms) {
+        if (state.aetherActive) return;
+        state.aetherActive = true;
+        state.aetherCount++;
+        checkAchievements(); // Check Aether achievement
+        
+        wrapper.classList.add('aether-mode');
+        showMessage("⚡ MODO AETHER ACTIVADO ⚡");
+        
+        const tick = () => {
+            activeTargets.forEach(t => {
+                try {
+                    const rect = t.el.getBoundingClientRect();
+                    // Simular evento en el centro del objetivo
+                    const evt = { 
+                        stopPropagation(){}, 
+                        clientX: rect.left + rect.width/2, 
+                        clientY: rect.top + rect.height/2 
+                    };
+                    if (t.type !== 'aether') t.hit(evt);
+                } catch {}
+            });
+        };
+        const interval = setInterval(tick, 300);
+        setTimeout(() => {
+            clearInterval(interval);
+            wrapper.classList.remove('aether-mode');
+            state.aetherActive = false;
+            showMessage("MODO AETHER FINALIZADO");
+        }, ms);
+    }
+    
+    function maybeLevelUp() {
+        const currentWorld = WORLDS[state.level];
+        if (!currentWorld) return;
+        
+        if (state.balance >= currentWorld.threshold) {
+            state.level++;
+            updateWorld(state.level);
+            checkAchievements(); // Check level achievements
+        }
+    }
+    
+    // Inicializar primer nivel
+    updateWorld(state.level);
+</script>
+</body>
+</html>
