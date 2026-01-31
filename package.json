@@ -15,6 +15,9 @@
   ],
   "author": "Aether Connect Labs",
   "license": "MIT",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",

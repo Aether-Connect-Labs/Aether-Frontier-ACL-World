@@ -15,15 +15,43 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '.'))); // Serve static files
 
 // MongoDB Connection
-const MONGO_URI = 'mongodb+srv://academicchain_app:AcademicChain2024@aeternum.xzjnm1a.mongodb.net/?appName=aeternum';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://academicchain_app:AcademicChain2024@aeternum.xzjnm1a.mongodb.net/?appName=aeternum';
 
-mongoose.connect(MONGO_URI, {
-    dbName: 'telegram_db',
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log('✅ MongoDB Connected to telegram_db'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
+// Connection Caching for Serverless (Vercel)
+let cachedDb = null;
+
+async function connectToDatabase() {
+    if (cachedDb) {
+        return cachedDb;
+    }
+    
+    // Check if we have a connection state
+    if (mongoose.connection.readyState === 1) {
+        cachedDb = mongoose.connection;
+        return cachedDb;
+    }
+
+    await mongoose.connect(MONGO_URI, {
+        dbName: 'telegram_db',
+        useNewUrlParser: true,
+        useUnifiedTopology: true
+    });
+    
+    cachedDb = mongoose.connection;
+    console.log('✅ MongoDB Connected to telegram_db');
+    return cachedDb;
+}
+
+// Ensure connection before handling requests
+app.use(async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error) {
+        console.error("Database connection error:", error);
+        res.status(500).send("Database Error");
+    }
+});
 
 // --- API Endpoints ---
 
@@ -87,6 +115,12 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+// For Vercel, we export the app
+module.exports = app;
+
+// Only listen if run directly (Render/Local)
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+}
