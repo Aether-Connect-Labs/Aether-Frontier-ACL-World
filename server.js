@@ -9,7 +9,7 @@ const server = http.createServer((req, res) => {
     
     let filePath = '.' + req.url;
     if (filePath === './') {
-        filePath = './JUEGO.HTML';
+        filePath = './index.html';
     }
 
     const extname = path.extname(filePath);

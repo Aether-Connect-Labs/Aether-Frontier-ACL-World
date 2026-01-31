@@ -1,0 +1,13 @@
+{
+  "name": "aether-frontier-acl-world",
+  "version": "1.0.0",
+  "description": "Duck Hunter Game for Aether Connect Labs",
+  "main": "index.html",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "npx http-server ."
+  },
+  "keywords": ["game", "acl", "duck-hunter"],
+  "author": "Aether Connect Labs",
+  "license": "MIT"
+}
