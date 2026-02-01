@@ -721,6 +721,40 @@
     </div>
 </div>
     
+    <!-- Login Modal -->
+    <div id="login-modal" class="shop-modal" style="display: none;">
+        <div class="shop-container" style="max-width: 400px; border-color: var(--neon-purple);">
+            <div class="shop-header">
+                <div class="shop-title" id="auth-title">INICIAR SESIÓN</div>
+            </div>
+            <div style="color: white; text-align: center; padding: 20px;">
+                <p style="margin-bottom: 20px;">Ingresa tus credenciales para acceder al sistema.</p>
+                
+                <input type="text" id="auth-user" placeholder="Usuario / ID" style="
+                    width: 100%; padding: 12px; margin-bottom: 10px;
+                    background: #111; border: 1px solid var(--neon-purple);
+                    color: white; border-radius: 5px; font-family: 'Orbitron';
+                ">
+                
+                <input type="password" id="auth-pass" placeholder="Contraseña" style="
+                    width: 100%; padding: 12px; margin-bottom: 20px;
+                    background: #111; border: 1px solid var(--neon-purple);
+                    color: white; border-radius: 5px; font-family: 'Orbitron';
+                ">
+                
+                <button id="auth-btn" class="cyber-button purple" data-mode="login" onclick="handleAuth()" style="width: 100%; margin-bottom: 15px;">
+                    ENTRAR
+                </button>
+                
+                <p id="auth-toggle" onclick="toggleRegisterMode()" style="
+                    font-size: 0.8rem; color: #aaa; cursor: pointer; text-decoration: underline;
+                ">
+                    ¿No tienes cuenta? Regístrate
+                </p>
+            </div>
+        </div>
+    </div>
+
     <!-- Leaderboard Modal -->
     <div id="leaderboard-modal" class="shop-modal">
         <div class="shop-container">
@@ -963,13 +997,25 @@
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             telegramUser = tg.initDataUnsafe.user;
             console.log("Telegram User:", telegramUser);
-        } else {
-            // Mock user for local testing
-            if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-                telegramUser = { id: 'test_user_123', first_name: 'Test', username: 'Tester' };
-            }
+        }
+        // If not in Telegram, we show Login Modal
+    }
+
+    // Check if we have a stored session from Web Login
+    if (!telegramUser) {
+        const storedUser = localStorage.getItem('acl_web_user');
+        if (storedUser) {
+            telegramUser = JSON.parse(storedUser);
+            console.log("Restored Web User:", telegramUser);
         }
     }
+    
+    // If still no user, show login modal (will be implemented below)
+    setTimeout(() => {
+        if (!telegramUser) {
+            toggleLoginModal();
+        }
+    }, 1000);
 
     async function loadGameData() {
         if (!telegramUser) return;
@@ -1167,7 +1213,75 @@
         }, 3000);
     }
 
-    // --- Wallet Logic ---
+    // --- Login Logic ---
+    window.toggleLoginModal = function() {
+        const modal = document.getElementById('login-modal');
+        if (modal.style.display === 'flex') {
+            // Only allow closing if user is logged in
+            if (telegramUser) modal.style.display = 'none';
+        } else {
+            modal.style.display = 'flex';
+        }
+    };
+
+    window.toggleRegisterMode = function() {
+        const title = document.getElementById('auth-title');
+        const btn = document.getElementById('auth-btn');
+        const toggle = document.getElementById('auth-toggle');
+        const mode = btn.getAttribute('data-mode');
+        
+        if (mode === 'login') {
+            title.innerText = "REGISTRO";
+            btn.innerText = "REGISTRARSE";
+            btn.setAttribute('data-mode', 'register');
+            toggle.innerText = "¿Ya tienes cuenta? Inicia Sesión";
+        } else {
+            title.innerText = "INICIAR SESIÓN";
+            btn.innerText = "ENTRAR";
+            btn.setAttribute('data-mode', 'login');
+            toggle.innerText = "¿No tienes cuenta? Regístrate";
+        }
+    };
+
+    window.handleAuth = async function() {
+        const btn = document.getElementById('auth-btn');
+        const mode = btn.getAttribute('data-mode');
+        const userVal = document.getElementById('auth-user').value.trim();
+        const passVal = document.getElementById('auth-pass').value.trim();
+        
+        if (!userVal || !passVal) {
+            alert("Por favor ingresa usuario y contraseña");
+            return;
+        }
+
+        const endpoint = mode === 'login' ? '/api/auth/login' : '/api/auth/register';
+        
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: userVal, password: passVal })
+            });
+            const json = await res.json();
+            
+            if (json.success) {
+                // Login Success
+                telegramUser = json.user;
+                localStorage.setItem('acl_web_user', JSON.stringify(telegramUser));
+                
+                // Close modal and load game
+                document.getElementById('login-modal').style.display = 'none';
+                loadGameData();
+                showMessage(mode === 'login' ? "SESIÓN INICIADA" : "REGISTRO EXITOSO");
+            } else {
+                alert(json.error || "Error de autenticación");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("Error de conexión");
+        }
+    };
+
     window.toggleWalletModal = function() {
         const modal = document.getElementById('wallet-modal');
         if (modal.style.display === 'flex') {
